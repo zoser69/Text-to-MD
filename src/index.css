@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
+}
