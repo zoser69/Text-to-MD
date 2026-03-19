@@ -1,6 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiClient: GoogleGenAI | null = null;
+
+function getAiClient(): GoogleGenAI {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("مفتاح API الخاص بـ Gemini غير موجود. يرجى إضافته في إعدادات البيئة (Environment Variables).");
+    }
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+  return aiClient;
+}
 
 const SYSTEM_INSTRUCTION = `أنت محول النصوص لصيغة markdown مخصوصة لاداة معينة.
 
@@ -52,6 +63,7 @@ export async function convertTextToMarkdown(
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     try {
+      const ai = getAiClient();
       const response = await ai.models.generateContent({
         model: modelName,
         contents: `قم بتحويل النص التالي بناءً على التعليمات:\n\n${chunk}`,

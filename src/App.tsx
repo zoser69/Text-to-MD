@@ -192,10 +192,16 @@ export default function App() {
                   Flash 2.5
                 </button>
                 <button
+                  onClick={() => setSelectedModel('gemini-2.5-flash-lite')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedModel === 'gemini-2.5-flash-lite' ? 'bg-white text-emerald-600 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+                >
+                  Flash 2.5 Lite
+                </button>
+                <button
                   onClick={() => setSelectedModel('gemini-3.1-flash-lite-preview')}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${selectedModel === 'gemini-3.1-flash-lite-preview' ? 'bg-white text-emerald-600 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
                 >
-                  Flash Lite
+                  Flash 3.1 Lite
                 </button>
               </div>
               {fileName && (
