@@ -68,9 +68,16 @@ export function chunkText(text: string, maxChars = 25000): string[] {
   return chunks;
 }
 
+export interface ConvertOptions {
+  thinkingEnabled?: boolean;
+  thinkingTokens?: number;
+  thinkingLevel?: string;
+}
+
 export async function convertTextToMarkdown(
   text: string,
   modelName: string,
+  options?: ConvertOptions,
   onProgress?: (progress: number) => void
 ): Promise<string> {
   const chunks = chunkText(text);
@@ -81,9 +88,17 @@ export async function convertTextToMarkdown(
     const isFirst = i === 0;
     const isLast = i === chunks.length - 1;
     
+    // Extract last 600 characters from the previous chunk for context
+    const previousContext = !isFirst ? chunks[i - 1].slice(-600) : '';
+    
     // Provide intelligent context to the model to ensure seamless merging
     const contextPrompt = `هذا هو الجزء رقم ${i + 1} من أصل ${chunks.length} من النص الكامل.
-${!isFirst ? 'تنبيه: هذا الجزء هو تكملة للجزء السابق، يرجى الاستمرار في التنسيق دون وضع مقدمات أو عناوين مكررة.' : ''}
+${!isFirst ? `
+--- سياق من نهاية الجزء السابق (للفهم والربط فقط - **ممنوع منعاً باتاً تكراره أو تضمينه في مخرجاتك**): ---
+${previousContext}
+---------------------------------------------------------
+تنبيه هام: الجزء التالي هو تكملة مباشرة للسياق أعلاه. استمر في التنسيق دون وضع عناوين رئيسية (#) أو فرعية (##) إلا إذا كانت موجودة فعلياً في النص الجديد، ولا تضع مقدمات.
+` : ''}
 ${!isLast ? 'تنبيه: هناك أجزاء أخرى ستتبع هذا الجزء، يرجى عدم وضع خاتمة.' : ''}
 
 قم بتحويل النص التالي بناءً على التعليمات:
@@ -92,13 +107,26 @@ ${chunk}`;
 
     try {
       const ai = getAiClient();
+      
+      const config: any = {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.1, // Low temperature for strict formatting and minimal hallucination
+      };
+
+      if (modelName.includes('3.1')) {
+        if (options?.thinkingLevel) {
+          config.thinkingConfig = { thinkingLevel: options.thinkingLevel };
+        }
+      } else if (modelName.includes('2.5')) {
+        if (options?.thinkingEnabled && options?.thinkingTokens) {
+          config.thinkingConfig = { thinkingBudgetTokens: options.thinkingTokens };
+        }
+      }
+
       const response = await ai.models.generateContent({
         model: modelName,
         contents: contextPrompt,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          temperature: 0.1, // Low temperature for strict formatting and minimal hallucination
-        }
+        config
       });
       
       let output = response.text || '';

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileText, Upload, Copy, Download, Check, Loader2, AlertCircle, Trash2, DownloadCloud } from 'lucide-react';
+import { FileText, Upload, Copy, Download, Check, Loader2, AlertCircle, Trash2, DownloadCloud, Settings2, ChevronDown } from 'lucide-react';
 import { extractTextFromFile } from './lib/fileParser';
 import { convertTextToMarkdown } from './lib/gemini';
 
@@ -13,6 +13,10 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
+  const [showSettings, setShowSettings] = useState(false);
+  const [thinkingEnabled, setThinkingEnabled] = useState(false);
+  const [thinkingTokens, setThinkingTokens] = useState(1024);
+  const [thinkingLevel, setThinkingLevel] = useState('low');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,7 +75,12 @@ export default function App() {
     setOutputText('');
 
     try {
-      const result = await convertTextToMarkdown(inputText, selectedModel, (p) => setProgress(p));
+      const result = await convertTextToMarkdown(
+        inputText, 
+        selectedModel, 
+        { thinkingEnabled, thinkingTokens, thinkingLevel },
+        (p) => setProgress(p)
+      );
       setOutputText(result);
     } catch (err: any) {
       setError(err.message || 'حدث خطأ أثناء التحويل.');
@@ -183,7 +192,7 @@ export default function App() {
               <span className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-sm">1</span>
               النص الأصلي
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-end gap-2">
               <div className="flex items-center bg-stone-100 p-1 rounded-lg ml-2" dir="ltr">
                 <button
                   onClick={() => setSelectedModel('gemini-2.5-flash')}
@@ -204,6 +213,16 @@ export default function App() {
                   Flash 3.1 Lite
                 </button>
               </div>
+              <button 
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-800 transition-colors ml-2"
+              >
+                <Settings2 size={14} />
+                إعدادات التفكير
+                <motion.div animate={{ rotate: showSettings ? 180 : 0 }}><ChevronDown size={14} /></motion.div>
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
               {fileName && (
                 <span className="text-xs font-medium px-3 py-1 bg-stone-100 text-stone-600 rounded-full truncate max-w-[150px]" dir="ltr">
                   {fileName}
@@ -226,6 +245,82 @@ export default function App() {
             </div>
           </div>
           
+          <AnimatePresence>
+            {showSettings && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex flex-col gap-4">
+                  <h3 className="text-sm font-bold text-stone-700 flex items-center gap-2">
+                    <Settings2 size={16} className="text-emerald-600" />
+                    إعدادات التفكير (Thinking)
+                  </h3>
+                  
+                  {selectedModel.includes('3.1') ? (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-medium text-stone-500">مستوى التفكير (Thinking Level)</label>
+                      <div className="flex items-center gap-2 bg-white border border-stone-200 p-1 rounded-lg w-fit" dir="ltr">
+                        {['minimal', 'low', 'medium', 'high'].map(level => (
+                          <button
+                            key={level}
+                            onClick={() => setThinkingLevel(level)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all capitalize ${thinkingLevel === level ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-200/50' : 'text-stone-500 hover:text-stone-700'}`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      <label className="flex items-center gap-3 cursor-pointer w-fit">
+                        <div className={`relative w-10 h-5 rounded-full transition-colors duration-300 ease-in-out ${thinkingEnabled ? 'bg-emerald-500' : 'bg-stone-300'}`}>
+                          <motion.div 
+                            className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm"
+                            animate={{ x: thinkingEnabled ? 20 : 0 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          />
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          className="hidden" 
+                          checked={thinkingEnabled} 
+                          onChange={(e) => setThinkingEnabled(e.target.checked)} 
+                        />
+                        <span className="text-sm font-medium text-stone-700">تفعيل التفكير المتقدم</span>
+                      </label>
+                      
+                      <AnimatePresence>
+                        {thinkingEnabled && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="flex flex-col gap-2 overflow-hidden"
+                          >
+                            <label className="text-xs font-medium text-stone-500">عدد التوكنز المخصصة للتفكير (Budget Tokens)</label>
+                            <input 
+                              type="number" 
+                              min="1"
+                              step="1"
+                              value={thinkingTokens}
+                              onChange={(e) => setThinkingTokens(Number(e.target.value))}
+                              className="w-full max-w-[200px] bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                              dir="ltr"
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
